@@ -1,0 +1,17 @@
+body{
+	background: url('http://www.vectorfree.com/media/vectors/blue-background-with-stars.jpg');
+	background-repeat: no repeat;
+	}
+	
+.navbar {
+background: url("http://huecues.files.wordpress.com/2010/11/black-and-white-leaf-waterdrops-long-goodbye.png")
+}
+.navbar .nav > ul > a {
+float: none;
+  padding: 10px 10px 11px;
+  line-height: 19px;
+  color: blue;
+  text-decoration: none;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+  margin-top: 8px;
+  font-size: 16px;
