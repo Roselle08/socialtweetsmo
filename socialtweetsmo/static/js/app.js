@@ -8,7 +8,7 @@ $(function(){
 
 	function relative_time(time_value) {
 		var values = time_value.split(" ");
-		// time_value = values[2] + " " + values[1] + ", " + values[3] + " " + values[5];
+		time_value = values[2] + " " + values[1] + ", " + values[3] + " " + values[5];
 		var parsed_date = Date.parse(time_value);
 		var relative_to = (arguments.length > 1) ? arguments[1] : new Date();
 		var delta = parseInt((relative_to.getTime() - parsed_date) / 1000);
@@ -46,11 +46,12 @@ $(function(){
 	app.models.SearchModel = Backbone.Model.extend({
 		initialize: function() {
 			var type = '';
-			if (this.get('isFB') === true) {
-				type = type + ' f ';
+			if (this.get('isFacebook') === true) {
+				type = type + ' Facebook ';
 			}
 			if (this.get('isTwitter') === true) {
-				type = type + ' t ';
+				type = type + ' Tweets ';
+		
 			}
 			this.set('type', type);
 		}
@@ -79,7 +80,7 @@ $(function(){
 		},
 
 		research: function() {
-			application.search(this.model.get('query'), this.model.get('isFB'), this.model.get('isTwitter'));
+			application.search(this.model.get('query'), this.model.get('isFacebook'), this.model.get('isTwitter'));
 		}
 	});
 
@@ -135,7 +136,7 @@ $(function(){
 
         },
         url: function() {
-			return 'http://search.twitter.com/search.json?q=' + this.query +  '&rpp=1000' + '&callback=?';
+			return 'http://search.facebook.com/search.json?q=' + this.query +  '&rpp=1000' + '&callback=?';
         },
         query: '', //default query
         page: '1',
@@ -179,7 +180,6 @@ $(function(){
 			return 'http://search.twitter.com/search.json?q=' + this.query +  '&rpp=1000' + '&callback=?';
         },
         query: '', //default query
-        page: '1',
         parse: function(resp, xhr) {
 			return resp.results;
         }
@@ -223,20 +223,52 @@ $(function(){
 	app.mainController = Backbone.View.extend({
 		events: {
 			'submit .tweet-search': 'onSearch',
-			'click #fb-login': 'onFBLogin',
-			'click #fb-logout': 'onFBLogout'
+			'click #fb-login-button': 'onFBLogin',
+			'click #fb-logout': 'onFBLogout',
+			'click #FBbtn':'FBclk',
+			'click #Tbtn':'Tclk',
+			'click #clear':'clearLocalStorage'
 		},
 		initialize: function () {
 			this._tweetsView = [];
 			this.tweets = new app.collections.TweetCollection();
 			this.fbFeeds = new app.collections.FBFeedCollection();
 			this.searchList = new app.collections.SearchCollection();
-
+			
 			new app.views.SearchHistoryView({
 				el: $('.sidebar-history'),
-				searchList: this.searchList
+				searchList: this.searchList,
 			});
-
+			
+			
+			
+			
+			//get local storage
+			var count=1;
+			while(localStorage.getItem("counter")>=count)
+			{
+			var query= localStorage.getItem("query"+count);
+			var Facebook=false;
+			if(localStorage.getItem("Facebook"+count)==="true")
+				Facebook=true;
+			var Tweet=false;
+			if(localStorage.getItem("Twitter"+count)==="true")
+				Tweet=true;
+			this.searchList.add({
+					query:query,
+					isFacebook: Facebook,
+					isTwitter: Tweet
+				});
+			count++;
+			
+			
+			}	
+				
+				
+				
+				
+				
+				
 			//set event handlers
 			_.bindAll(this, 'onTweetAdd');
 			this.tweets.bind('add', this.onTweetAdd);
@@ -244,7 +276,7 @@ $(function(){
 			_.bindAll(this, 'onFBFeedAdd');
 			this.fbFeeds.bind('add', this.onFBFeedAdd);
 		},
-
+		
 		loadTweets: function () {
 			var that = this;
 			this.tweets.reset();
@@ -264,10 +296,18 @@ $(function(){
 			var that = this;
 			var query = this.fbFeeds.query;
 			this.fbFeeds.reset();
-			FB.api('/me/home?q=' + query, function(res){
-				console.log(res);
-				that.fbFeeds.add(res.data);
+			//FB.api('/me/home?limit=100&q=' + query, 
+			 FB.api('http://graph.facebook.com/search/?q=' + query + '&limit=100&callback=processFeed', 
+			function (response){
+				console.log(response);
+				that.fbFeeds.add(response.data);
 			});
+	
+	
+		},
+		clearLocalStorage: function()
+		{
+			localStorage.clear();
 		},
 		onFBLogin: function() {
 			fbUser.login();
@@ -275,18 +315,59 @@ $(function(){
 		onFBLogout: function() {
 			fbUser.logout();
 		},
-		search: function(query, isFB, isTwitter) {
+		
+		
+		FBclk: function() 
+		{
+			$('input[name="cb-facebook"]').click();
+			if($('input[name="cb-facebook"]').val()=="")
+			{
+				$("#FBbtn").attr("src","/static/img/offF.PNG");
+				$('input[name="cb-facebook"]').val("ok");
+			}
+			else
+			{
+				$("#FBbtn").attr("src","/static/img/onFB.PNG");
+				$('input[name="cb-facebook"]').val("");
+			}
+		},
+		Tclk: function() {
+		
+			$('input[name="cb-twitter"]').click();
+			if($('input[name="cb-twitter"]').val()=="")
+			{
+				$("#Tbtn").attr("src","/static/img/offT.PNG");
+				$('input[name="cb-twitter"]').val("ok");
+			}
+			else
+			{
+				$("#Tbtn").attr("src","/static/img/onT.PNG");
+				$('input[name="cb-twitter"]').val("");
+			}
+		},
+		
+		
+		
+		
+		search: function(query, isFacebook, isTwitter) {
 
-			$('.title').html('<span class="blue search-count">0</span> results for: "' + query +'"');
+			$('.title').html('<div class="well text-info"><span class="blue search-count">0</span> results for: "' + query +'" </div>');
 			this.tweets.query = query;
 			this.fbFeeds.query = query;
 			this.$('.tweets-result li').remove();
 
 			//check if new search
-			var newSearch = true;
+			var newSearch = true;//saves to the database, key/value
+			//document.write(localStorage.getItem("name")); //Hello World!
+			//localStorage.removeItem("name"); //deletes the matching item from the database
+
 			this.searchList.each(function(search) {
+			
+
+			
 				if (search.get('query') === query) {
-					if (search.get('isFB') === isFB && search.get('isTwitter') === isTwitter) {
+					//console.log("roselle"+search.get('query'));
+					if (search.get('isFacebook') === isFacebook && search.get('isTwitter') === isTwitter) {
 						newSearch = false;
 					}
 				}
@@ -294,14 +375,26 @@ $(function(){
 
 			//if not add to search history
 			if (newSearch) {
+			if(localStorage.getItem("counter")==null)
+			{
+				localStorage.setItem("counter",1);
+			}
+			else
+			{
+				localStorage.setItem("counter",parseInt(localStorage.getItem("counter"))+1)
+			}
+			var count=localStorage.getItem("counter");
+			localStorage.setItem("query"+count, query); 
+			localStorage.setItem("Facebook"+count, isFacebook); 
+			localStorage.setItem("Twitter"+count, isTwitter); 	
 				this.searchList.add({
 					query: query,
-					isFB: isFB,
+					isFacebook: isFacebook,
 					isTwitter: isTwitter
 				});
 			}
 
-			if (isFB) {
+			if (isFacebook) {
 				this.loadFbFeeds();
 			}
 
@@ -311,12 +404,12 @@ $(function(){
 		},
 
 		onSearch: function() {
-			var isFB = false;
+			var isFacebook = false;
 			var isTwitter = false;
-
+			console.log($('input[name="cb-facebook"]:checked').length);
 			//check if Facebook checkbox is checked
 			if ($('input[name="cb-facebook"]:checked').length > 0 ) {
-				isFB = true;
+				isFacebook = true;
 			}
 
 			//check if Twitter checkbox is checked
@@ -325,7 +418,10 @@ $(function(){
 			}
 			//check if new search
 			var query = this.$('.search-query').val();
-			this.search(query, isFB, isTwitter);
+			if((!isFacebook)&&(!isTwitter))
+				{$('.title').html('<div class="well text-info">PLEASE CLICK Facebook OR TWITTER</div>');}
+			else
+				{this.search(query, isFacebook, isTwitter);}
 			return false;
 		},
 
